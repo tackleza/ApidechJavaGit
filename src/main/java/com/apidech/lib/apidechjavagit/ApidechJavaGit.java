@@ -2,6 +2,7 @@ package com.apidech.lib.apidechjavagit;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.List;
 
 import org.eclipse.jgit.api.CleanCommand;
 import org.eclipse.jgit.api.CloneCommand;
@@ -10,8 +11,10 @@ import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.PullCommand;
 import org.eclipse.jgit.api.PushCommand;
 import org.eclipse.jgit.api.ResetCommand.ResetType;
+import org.eclipse.jgit.api.TagCommand;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
@@ -34,24 +37,24 @@ public class ApidechJavaGit {
     /**
      * Opens an existing Git repository located at the given directory without authentication.
      *
-     * @param repoPath the filesystem path of the existing Git repository
-     * @throws IOException if repository cannot be opened
+     * @param repoDir the directory containing the existing Git repository
+     * @throws IOException if the repository cannot be opened
      */
-    public ApidechJavaGit(String repoPath) throws IOException {
-        this(repoPath, null, null);
+    public ApidechJavaGit(File repoDir) throws IOException {
+        this(repoDir, null, null);
     }
 
     /**
      * Opens an existing Git repository located at the given directory with authentication.
      *
-     * @param repoPath   the filesystem path of the existing Git repository
-     * @param username   the username for remote operations
-     * @param password   the password (or token) for remote operations
-     * @throws IOException if repository cannot be opened
+     * @param repoDir the directory containing the existing Git repository
+     * @param username the username for remote operations
+     * @param password the password (or token) for remote operations
+     * @throws IOException if the repository cannot be opened
      */
-    public ApidechJavaGit(String repoPath, String username, String password) throws IOException {
+    public ApidechJavaGit(File repoDir, String username, String password) throws IOException {
         Repository repository = new FileRepositoryBuilder()
-                .setGitDir(new File(repoPath, ".git"))
+                .setGitDir(new File(repoDir, ".git"))
                 .readEnvironment()
                 .findGitDir()
                 .build();
@@ -80,8 +83,8 @@ public class ApidechJavaGit {
      *
      * @param remoteUri the URI of the remote repository
      * @param targetDir the local directory into which to clone
-     * @param username  the username for remote operations
-     * @param password  the password (or token) for remote operations
+     * @param username the username for remote operations
+     * @param password the password (or token) for remote operations
      * @return a GitClient instance pointing at the newly cloned repository
      * @throws GitAPIException if the clone operation fails
      */
@@ -214,6 +217,66 @@ public class ApidechJavaGit {
     }
 
     /**
+     * Creates a lightweight tag at the current HEAD.
+     *
+     * @param tagName the name of the tag to create
+     * @return the tag reference
+     * @throws GitAPIException if the tag operation fails
+     */
+    public Ref tag(String tagName) throws GitAPIException {
+        TagCommand cmd = git.tag().setName(tagName);
+        return cmd.call();
+    }
+
+    /**
+     * Creates an annotated tag at the current HEAD with the given message.
+     *
+     * @param tagName the name of the tag
+     * @param message the annotation message
+     * @return the tag reference
+     * @throws GitAPIException if the tag operation fails
+     */
+    public Ref tagAnnotated(String tagName, String message) throws GitAPIException {
+        TagCommand cmd = git.tag().setName(tagName).setMessage(message);
+        return cmd.call();
+    }
+
+    /**
+     * Lists all tags in the repository.
+     *
+     * @return list of tag references
+     * @throws GitAPIException if listing tags fails
+     */
+    public List<Ref> listTags() throws GitAPIException {
+        return git.tagList().call();
+    }
+
+    /**
+     * Deletes a local tag by name.
+     *
+     * @param tagName the name of the tag to delete
+     * @throws GitAPIException if the delete operation fails
+     */
+    public void deleteTag(String tagName) throws GitAPIException {
+        git.tagDelete().setTags(tagName).call();
+    }
+
+    /**
+     * Pushes a single tag to the remote.
+     *
+     * @param tagName the name of the tag to push
+     * @throws GitAPIException if the push operation fails
+     */
+    public void pushTag(String tagName) throws GitAPIException {
+        PushCommand cmd = git.push();
+        if (credentialsProvider != null) {
+            cmd.setCredentialsProvider(credentialsProvider);
+        }
+        cmd.add("refs/tags/" + tagName);
+        cmd.call();
+    }
+
+    /**
      * Pulls updates from the remote repository and merges into the current branch.
      *
      * @throws GitAPIException if the pull operation fails
@@ -258,6 +321,15 @@ public class ApidechJavaGit {
     public void close() {
         git.close();
     }
+    
+    /**
+     * Method to return original Git Client
+     * 
+     * @return Git client from eclipse
+     */
+    public Git getGit() {
+		return git;
+	}
 
-    // Additional common actions (status, log, tag, etc.) can be added below with similar patterns.
+    // Additional common actions (status, log, etc.) can be added below with similar patterns.
 }
