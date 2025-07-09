@@ -4,12 +4,13 @@ A pure-Java Git client library built on JGit for common Git operations with opti
 
 ## Features
 
-* Clone repositories (with optional username/password credentials)
-* Open existing repositories
-* Branch management: create, checkout, get current branch
-* Staging and commits: add all, commit with message
-* History operations: fetch, pull, push
-* Workspace cleanup: hard reset, clean untracked files
+* Clone repositories using `File` target directory (with optional username/password credentials)
+* Open existing repositories via `File repoDir` constructor
+* Branch management: `createBranch`, `checkoutBranch`, `getCurrentBranch`
+* Staging and commits: `addAll`, `commit`
+* History operations: `fetch`, `pull`, `push`
+* Workspace cleanup: `reset(ResetType)`, `resetHard`, `clean`
+* Tagging: `tag`, `tagAnnotated`, `listTags`, `deleteTag`, `pushTag`
 
 ## Prerequisites
 
@@ -30,6 +31,8 @@ Add the dependency to your project’s `pom.xml`:
 
 ## Usage
 
+### Cloning & Working with a New Repository
+
 ```java
 import com.example.gitlib.GitClient;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -41,7 +44,7 @@ public class Example {
     public static void main(String[] args) {
         File repoDir = new File("/path/to/local/repo");
         try {
-            // Clone a private repository with credentials
+            // Clone a repository with credentials
             GitClient git = GitClient.cloneRepository(
                 "https://github.com/your-org/private-repo.git",
                 repoDir,
@@ -49,23 +52,25 @@ public class Example {
                 "passwordOrToken"
             );
 
-            // Get current branch
-            String branch = git.getCurrentBranch();
-            System.out.println("On branch: " + branch);
-
-            // Create and checkout a new feature branch
+            // Branch operations
+            String current = git.getCurrentBranch();
             git.createBranch("feature-x");
             git.checkoutBranch("feature-x");
 
-            // Make changes, then add & commit
-            // (modify files in repoDir...)
+            // Stage & commit
             git.addAll();
-            git.commit("Add changes for feature X");
+            git.commit("Implement feature X");
 
-            // Push changes back to remote
+            // Tagging
+            git.tagAnnotated("v1.0.0", "Release version 1.0.0");
+            git.pushTag("v1.0.0");
+
+            // Remote sync
+            git.fetch();
+            git.pull();
             git.push();
 
-            // Cleanup: hard reset and remove untracked files
+            // Cleanup
             git.reset(ResetType.HARD);
             git.clean();
 
@@ -77,14 +82,35 @@ public class Example {
 }
 ```
 
-For opening an already-cloned repository:
+### Opening & Using an Existing Repository
 
 ```java
-GitClient existing = new GitClient(
-    "/path/to/local/repo",
-    "username",
-    "passwordOrToken"
-);
-existing.pull();
-existing.close();
+import com.example.gitlib.GitClient;
+import org.eclipse.jgit.api.errors.GitAPIException;
+import java.io.File;
+import java.io.IOException;
+
+public class ExistingExample {
+    public static void main(String[] args) {
+        File repoDir = new File("/path/to/local/repo");
+        try {
+            GitClient client = new GitClient(
+                repoDir,
+                "username",
+                "passwordOrToken"
+            );
+            // List tags
+            client.listTags().forEach(ref -> System.out.println(ref.getName()));
+
+            // Delete a tag locally
+            client.deleteTag("old-tag");
+
+            // Pull updates
+            client.pull();
+            client.close();
+        } catch (IOException | GitAPIException e) {
+            e.printStackTrace();
+        }
+    }
+}
 ```
